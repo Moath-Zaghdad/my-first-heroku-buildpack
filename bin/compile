@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+#
+export_env_dir() {
+  env_dir=$1
+  acceptlist_regex=${2:-''}
+  denylist_regex=${3:-'^(PATH|GIT_DIR|CPATH|CPPATH|LD_PRELOAD|LIBRARY_PATH)$'}
+  if [ -d "$env_dir" ]; then
+    for e in $(ls $env_dir); do
+      echo "$e" | grep -E "$acceptlist_regex" | grep -qvE "$denylist_regex" &&
+      export "$e=$(cat $env_dir/$e)"
+      :
+    done
+  fi
+}
+
+export_env_dir $3
+
+
+new_relic_api_key=${NEW_RELIC_API_KEY:-''}
+new_relic_app_id=${NEW_RELIC_APP_ID:-''}
+
+if [ ! -z $new_relic_api_key ] && [ ! -z $new_relic_app_id ]
+then
+    echo "-----> Notifying NewRelic of this deploy"
+
+    echo "BUILD_DIR=$1"
+    echo "CACHE_DIR=$2"
+    echo "ENV_DIR=$3"
+
+    author_email=$(git log -1 --pretty=format:'%ae')
+    description=$(git log -1 --pretty=format:'%s')
+    commit_hash=$(git log -1 --pretty=format:'%H')
+    changelog=$(git show --name-only HEAD)
+
+    curl -X POST 'https://api.newrelic.com/v2/applications/${new_relic_app_id}/deployments.json' \
+         -H 'Api-Key:${new_relic_api_key}' -i \
+         -H 'Content-Type: application/json' \
+         -d \
+    '{
+      "deployment": {
+        "revision": "${commit_hash}",
+        "changelog": "${changelog}",
+        "description": "${description}",
+        "user": "${author_email}"
+      }
+    }'
+else
+    echo "-----> NewRelic is not configured XXX"
+fi
