@@ -18,22 +18,26 @@ export_env_dir $3
 new_relic_api_key=${NEW_RELIC_API_KEY:-''}
 new_relic_app_id=${NEW_RELIC_APP_ID:-''}
 
-if [ ! -z $new_relic_api_key ] && [ ! -z $new_relic_app_id ]
-then
-    echo "-----> Notifying NewRelic of this deploy"
 
-    curl -X POST "https://api.newrelic.com/v2/applications/${new_relic_app_id}/deployments.json" \
-         -H "Api-Key:${new_relic_api_key}" -i \
-         -H "Content-Type: application/json" \
-         -d \
-         '{
-    "deployment": {
-    "revision": "'$HEROKU_SLUG_COMMIT'",
-    "changelog": "'$HEROKU_APP_NAME'\n'$HEROKU_RELEASE_CREATED_AT'\n'$HEROKU_RELEASE_VERSION'",
-    "description": "'$HEROKU_SLUG_DESCRIPTION'"
-    }
-}'
+MESSAGE_PAYLOAD='{"deployment":{"revision":"'$HEROKU_SLUG_COMMIT'","description":"*'$HEROKU_APP_NAME'* was deployed"}}'
 
+if [[ -z "${DEPLOY_NOTIFY_GITHUB_AUTH_TOKEN}" || -z "${DEPLOY_NOTIFY_GITHUB_ORG}" || -z "${DEPLOY_NOTIFY_GITHUB_PROJECT}" ]]; then
+  # Not loading Github Data
+  MESSAGE_PAYLOAD="$MESSAGE_PAYLOAD"
+elif [[ -z "${SOURCE_VERSION}" ]]; then
+  # We don't have the current git sha
+  MESSAGE_PAYLOAD="$MESSAGE_PAYLOAD"
 else
-    echo "-----> NewRelic is not configured XXX"
+  echo "-----> Loading commit information from Github"
+  COMMIT_JSON=$(curl -H "Authorization: token $DEPLOY_NOTIFY_GITHUB_AUTH_TOKEN" https://api.github.com/repos/$DEPLOY_NOTIFY_GITHUB_ORG/$DEPLOY_NOTIFY_GITHUB_PROJECT/commits/$SOURCE_VERSION)
+  AUTHOR_NAME=$(echo "$COMMIT_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin, strict=False)['commit']['author']['name'])" || echo '')
+  AUTHOR_EMAIL=$(echo "$COMMIT_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin, strict=False)['commit']['author']['email'])"  || echo '')
+  COMMIT_MESSAGE=$((echo "$COMMIT_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin, strict=False)['commit']['message'])" || echo '') | head -n 1)
+  COMMIT_URL=$(echo "$COMMIT_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin, strict=False)['html_url'])" || echo 'Can not reach Github...')
+  MESSAGE_PAYLOAD='{"deployment":{"revision":"'$HEROKU_SLUG_COMMIT'","description":"'$COMMIT_MESSAGE'","user":"'$AUTHOR_EMAIL'","changelog":"'$COMMIT_URL'"}}'
 fi
+echo "-----> Notifying NewRelic that the deploy is complete"
+echo "       $MESSAGE_PAYLOAD"
+curl -X POST "https://api.newrelic.com/v2/applications/${new_relic_app_id}/deployments.json" -H "Api-Key:${new_relic_api_key}" -i -H 'Content-Type: application/json' -d "$MESSAGE_PAYLOAD"
+echo ""
+echo ""
