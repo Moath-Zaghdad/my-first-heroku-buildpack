@@ -15,7 +15,6 @@ export_env_dir() {
 
 export_env_dir $3
 
-
 new_relic_api_key=${NEW_RELIC_API_KEY:-''}
 new_relic_app_id=${NEW_RELIC_APP_ID:-''}
 
@@ -23,29 +22,18 @@ if [ ! -z $new_relic_api_key ] && [ ! -z $new_relic_app_id ]
 then
     echo "-----> Notifying NewRelic of this deploy"
 
-    ls -la $1
-    echo "BUILD_DIR=$1"
-    echo "CACHE_DIR=$2"
-    echo "ENV_DIR=$3"
+    curl -X POST "https://api.newrelic.com/v2/applications/${new_relic_app_id}/deployments.json" \
+         -H "Api-Key:${new_relic_api_key}" -i \
+         -H "Content-Type: application/json" \
+         -d \
+         '{
+    "deployment": {
+    "revision": "'$HEROKU_SLUG_COMMIT'",
+    "changelog": "'$HEROKU_APP_NAME'\n'$HEROKU_RELEASE_CREATED_AT'\n'$HEROKU_RELEASE_VERSION'",
+    "description": "'$HEROKU_SLUG_DESCRIPTION'"
+    }
+}'
 
-    author_email=$(git log -1 --pretty=format:'%ae')
-    description=$(git log -1 --pretty=format:'%s')
-    commit_hash=$(git log -1 --pretty=format:'%H')
-    changelog=$(git show --name-only HEAD)
-    echo "${changelog} ${author_email}"
-
-    # curl -X POST 'https://api.newrelic.com/v2/applications/${new_relic_app_id}/deployments.json' \
-    #      -H 'Api-Key:${new_relic_api_key}' -i \
-    #      -H 'Content-Type: application/json' \
-    #      -d \
-    # '{
-    #   "deployment": {
-    #     "revision": "${commit_hash}",
-    #     "changelog": "${changelog}",
-    #     "description": "${description}",
-    #     "user": "${author_email}"
-    #   }
-    # }'
 else
     echo "-----> NewRelic is not configured XXX"
 fi
