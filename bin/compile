@@ -12,6 +12,7 @@ export_env_dir() {
     done
   fi
 }
+echo $(env)
 
 export_env_dir $3
 
@@ -23,6 +24,7 @@ if [ ! -z $new_relic_api_key ] && [ ! -z $new_relic_app_id ]
 then
     echo "-----> Notifying NewRelic of this deploy"
 
+    echo $(env)
     ls -la $1/.heroku
     echo "BUILD_DIR=$1"
     echo "CACHE_DIR=$2"
