@@ -19,7 +19,7 @@ new_relic_api_key=${NEW_RELIC_API_KEY:-''}
 new_relic_app_id=${NEW_RELIC_APP_ID:-''}
 
 
-MESSAGE_PAYLOAD='{"deployment":{"revision":"'$HEROKU_SLUG_COMMIT'","description":"*'$HEROKU_APP_NAME'* was deployed"}}'
+MESSAGE_PAYLOAD='{"deployment":{"revision":"'$SOURCE_VERSION'","description":"*'$HEROKU_APP_NAME'* was deployed"}}'
 
 if [[ -z "${DEPLOY_NOTIFY_GITHUB_AUTH_TOKEN}" || -z "${DEPLOY_NOTIFY_GITHUB_ORG}" || -z "${DEPLOY_NOTIFY_GITHUB_PROJECT}" ]]; then
   # Not loading Github Data
@@ -34,7 +34,7 @@ else
   AUTHOR_EMAIL=$(echo "$COMMIT_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin, strict=False)['commit']['author']['email'])"  || echo '')
   COMMIT_MESSAGE=$((echo "$COMMIT_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin, strict=False)['commit']['message'])" || echo '') | head -n 1)
   COMMIT_URL=$(echo "$COMMIT_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin, strict=False)['html_url'])" || echo 'Can not reach Github...')
-  MESSAGE_PAYLOAD='{"deployment":{"revision":"'$HEROKU_SLUG_COMMIT'","description":"'$COMMIT_MESSAGE'","user":"'$AUTHOR_EMAIL'","changelog":"'$COMMIT_URL'"}}'
+  MESSAGE_PAYLOAD='{"deployment":{"revision":"'$SOURCE_VERSION'","description":"'$COMMIT_MESSAGE'","user":"'$AUTHOR_EMAIL'","changelog":"'$COMMIT_URL'"}}'
 fi
 echo "-----> Notifying NewRelic that the deploy is complete"
 echo "       $MESSAGE_PAYLOAD"
