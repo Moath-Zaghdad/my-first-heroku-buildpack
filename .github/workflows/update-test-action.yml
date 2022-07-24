@@ -41,6 +41,5 @@ jobs:
           assignees: peter-evans
           reviewers: peter-evans
           team-reviewers: |
-            owners
-            maintainers
+            Moath_Zaghdad
           draft: false
